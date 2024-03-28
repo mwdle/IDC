@@ -145,7 +145,7 @@ void initLittleFS() {
 
 void initWebSocket() {
   ws.onEvent(onEvent);
-  server.addHandler(&ws);
+  iccServer.addHandler(&ws);
 }
 
 void setup(void) {
