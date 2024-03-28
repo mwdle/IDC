@@ -1,4 +1,4 @@
-# ICC - I2C Canvas Controller
+# I2C Canvas Controller
 Web-based drawing canvas mirrored onto an I2C display in realtime using an ESP8266 NodeMCU board.    <br><br>    
 <p align="center" float="left">
   <img src="webPage.gif" alt="animated" width="45%"/>
