@@ -179,17 +179,18 @@ void setup(void) {
   // Start OTA/Serial server
   server.begin();
 
-  initWebSocket();
+
   initLittleFS();
 
-  // Web Server Root URL
   iccServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
   });
   
   iccServer.serveStatic("/", LittleFS, "/");
 
-  // Start web canvas server
+  initWebSocket();
+
+  // Start web canvas and websocket server.
   iccServer.begin();
 
   // Initialize display
