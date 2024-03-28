@@ -6,14 +6,14 @@ Web-based drawing canvas mirrored onto an I2C display in realtime using an ESP82
 </p>        
 
 ## Functionality:
-* Webserver with interactive pixel canvas that mirrors all input to attached I2C displays (http://<espIP>:443).
+* Webserver with interactive pixel canvas that mirrors all input to attached I2C displays (http://\<espIP\>:443).
   * Users are able draw, erase, change brush size, and clear the canvas.
-* Internet Serial Interface - includes WebSerial library to allow serial monitoring and input over Wi-Fi (http://<espIP>/webserial).
+* Internet Serial Interface - includes WebSerial library to allow serial monitoring and input over Wi-Fi (http://\<espIP\>/webserial).
 * Internet based controls via WebSerial input:
     * /setPixel x y \<status\> (where \<status\> should be replaced with either "on" or "off")
     * /restart - restarts the ESP device.
 * Internet connection status indicator: Red onboard LED will turn on anytime the ESP is not connected to a Wi-Fi network.
-* OTA Updates - includes ElegantOTA library to allow for Over-The-Air firmware and filesystem updates (http://<espIP>/update).    <br><br>
+* OTA Updates - includes ElegantOTA library to allow for Over-The-Air firmware and filesystem updates (http://\<espIP\>/update).    <br><br>
 
 # Specifications and Pinout
 All builds were created and tested using the PlatformIO IDE extension for VSCode and Espressif ESP8266 NodeMCU board paired with a 2 pin .96 Inch 128x64 I2C SSD1306 OLED display. Mileage may vary using other boards, IDE's, and displays.    <br><br>    
