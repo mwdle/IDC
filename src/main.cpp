@@ -27,9 +27,9 @@ using std::regex;
 using std::regex_match;
 using std::string;
 
-// Internet related setup:
-const char* ssid = "";
-const char* password = "";
+// Only put your credentials here if you aren't storing them on the filesystem. You can learn more about this in the README.
+String ssid = "";
+String password = "";
 
 IPAddress subnet(255, 255, 255, 0);
 IPAddress gateway(192, 168, 0, 1);
@@ -37,10 +37,10 @@ IPAddress ip(192, 168, 0, 98);
 
 AsyncWebServer server(80);
 
-AsyncWebServer iccServer(443);
-
 // Initialize display:
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+std::stringstream pixels;
 
 // Initialize WebSocket:
 AsyncWebSocket ws("/ws");
@@ -92,23 +92,32 @@ void notifyClients(String state) {
 }
 
 // Handle any incoming display data from the web interface, and mirror it to the display.
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+void recvWebSktMsg(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
     std::stringstream message((char*)data);
     string messages[5];
     int index = 0;
-    for (string line; getline(message, line, ';');) {
-      messages[index++] = line;
+    for (string chunk; getline(message, chunk, ';');) {
+      messages[index++] = chunk;
     }
     int x = stoi(messages[0]);
     int y = stoi(messages[1]);
     int brushSize = stoi(messages[2]);
     uint16_t color = stoi(messages[3]);
     bool clearCanvas = stoi(messages[4]);
-    if (clearCanvas) display.fillRect(0, 0, 128, 64, BLACK);
-    else display.fillRect(x, y, brushSize, brushSize, color);
+    if (clearCanvas) { 
+      display.fillRect(0, 0, 128, 64, BLACK); 
+      notifyClients("CC");  
+    }
+    else { 
+      display.fillRect(x, y, brushSize, brushSize, color); 
+      std::stringstream message;
+      message << x << ";" << y << ";" << brushSize << ";" << color << ";";
+      notifyClients(message.str().c_str());
+    }
+
     displayChangesQueued = true;
   }
 }
@@ -117,17 +126,24 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   switch (type) {
     case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      //Notify client of motor current state when it first connects
-      // notifyClients(direction);
+      WebSerial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      for (int i = 0; i < SCREEN_HEIGHT; i++) {
+        for (int j = 0; j < SCREEN_WIDTH; j++) {
+          pixels << display.getPixel(j, i);
+        }
+        ESP.wdtFeed();
+      }
+      ws.text(client->id(), pixels.str().c_str());
+      pixels.clear();
       break;
     case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
+      WebSerial.printf("WebSocket client #%u disconnected\n", client->id());
       break;
     case WS_EVT_DATA:
-        handleWebSocketMessage(arg, data, len);
+        recvWebSktMsg(arg, data, len);
         break;
     case WS_EVT_PONG:
+      break;
     case WS_EVT_ERROR:
      break;
   }
@@ -145,7 +161,7 @@ void initLittleFS() {
 
 void initWebSocket() {
   ws.onEvent(onEvent);
-  iccServer.addHandler(&ws);
+  server.addHandler(&ws);
 }
 
 void setup(void) {
@@ -154,13 +170,21 @@ void setup(void) {
 
   Serial.begin(115200);
 
+  initLittleFS();
+  File file = LittleFS.open("secret", "r");
+  if (file) {
+    ssid = file.readStringUntil('\n');
+    password = file.readStringUntil('\n');
+    file.close();
+  }
+
   // Initialize Wi-Fi
   WiFi.config(ip, gateway, subnet, gateway);
   WiFi.mode(WIFI_STA);
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid.c_str(), password.c_str());
   while(WiFi.status() != WL_CONNECTED)
   {
     digitalWrite(errorLed, LOW);   // Turn on the red onboard LED by making the voltage LOW
@@ -179,19 +203,16 @@ void setup(void) {
   // Start OTA/Serial server
   server.begin();
 
-
-  initLittleFS();
-
-  iccServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
   });
   
-  iccServer.serveStatic("/", LittleFS, "/");
+  server.serveStatic("/", LittleFS, "/");
 
   initWebSocket();
 
   // Start web canvas and websocket server.
-  iccServer.begin();
+  server.begin();
 
   // Initialize display
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
