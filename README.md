@@ -18,7 +18,7 @@ Web-based drawing canvas mirrored onto an I2C display in realtime using an ESP82
 # Specifications and Pinout
 All builds were created and tested using the PlatformIO IDE extension for VSCode and Espressif ESP8266 NodeMCU board paired with a 2 pin .96 Inch 128x64 I2C SSD1306 OLED display. Mileage may vary using other boards, IDE's, and displays.    <br><br>    
 
-The following libraries are required (for basic and network functions):
+The following libraries/dependencies are required (for basic and network functions):
 * [ICCWebPage](https://github.com/mwdle/ICCWebPage)
 * [Elegant OTA](https://github.com/ayushsharma82/ElegantOTA)
 * [WebSerialDark](https://github.com/mwdle/WebSerialDark)
