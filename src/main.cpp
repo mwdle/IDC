@@ -50,8 +50,6 @@ AsyncWebSocket ws("/ws");
 
 unsigned long lastWifiCheck = 0;
 
-volatile bool displayChangesQueued = false;
-
 // Handle any incoming display data from the web interface, and mirror it to the display.
 void recvWebSktMsg(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -169,7 +167,7 @@ void loop(void) {
     else digitalWrite(errorLed, HIGH); // Turn off red onboard LED by setting voltage HIGH
   } 
 
-  while (!queue.empty()) {
+  if (!queue.empty()) {
     stringstream msg = stringstream(queue.front());
     ws.textAll(msg.str().c_str());
     queue.pop();
@@ -183,13 +181,9 @@ void loop(void) {
     else display.fillRect(stoi(values[3]), stoi(values[4]), stoi(values[6]), stoi(values[6]), stoi(values[2]));
     display.display();
     ESP.wdtFeed();
-    delay(20);
-  }
-
-  if (displayChangesQueued) {
-    displayChangesQueued = false;
-    display.display();
   }
 
   ws.cleanupClients();
+
+  delay(25);
 }
