@@ -16,7 +16,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <queue>
-#include <mutex>
 
 #define errorLed D0
 
@@ -182,8 +181,9 @@ void loop(void) {
     }
     if (values[0] == "1") display.fillRect(0, 0, 128, 64, BLACK);
     else display.fillRect(stoi(values[3]), stoi(values[4]), stoi(values[6]), stoi(values[6]), stoi(values[2]));
-    displayChangesQueued = true;
+    display.display();
     ESP.wdtFeed();
+    delay(20);
   }
 
   if (displayChangesQueued) {
