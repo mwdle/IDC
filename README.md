@@ -21,7 +21,6 @@ All builds were created and tested using the PlatformIO IDE extension for VSCode
 The following libraries/dependencies are required (for basic and network functions):
 * [ICCWebPage](https://github.com/mwdle/ICCWebPage)
 * [Elegant OTA](https://github.com/ayushsharma82/ElegantOTA)
-* [WebSerialDark](https://github.com/mwdle/WebSerialDark)
 * [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)    
 * [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library)    
 * [Adafruit SSD1306](https://github.com/adafruit/Adafruit_SSD1306)    <br><br>
@@ -36,9 +35,9 @@ The following libraries/dependencies are required (for basic and network functio
 
 ## Filesystem and Webpage Info:
 * The webpage resources required by this project must be uploaded to your microcontroller's filesystem independently of the compiled source code / firmware.
-* The filesystem used for this project is LittleFS (as opposed to the deprecated SPIFFS).
 * To upload the webpage resources to your microcontroller, in Arduino or PlatformIO, use the tool to build and upload the filesystem image. After doing so, you may build and upload the firmware.    
-* The webpage source code in this project has been minified to save space. To make any modifications to it, feel free to download the raw (unminified) code from https://github.com/mwdle/ICCWebPage<br><br>
+* The filesystem used for this project is LittleFS (as opposed to the deprecated SPIFFS).
+* The webpage source code in this project has been minified to save space. To more easily modify it, feel free to download the raw (unminified) code from https://github.com/mwdle/ICCWebPage<br><br>
 
 ## Pinout Info:
 * errorLED is the pin of your onboard red LED. This program uses pin D0 (16) on the ESP8266 NodeMCU.    
