@@ -6,6 +6,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
+#include <WebSocketsServer.h>
 #include <deque>
 
 #define SPIFFS LittleFS
@@ -25,57 +26,51 @@ IPAddress ip(192, 168, 0, 98);
 
 AsyncWebServer server(80);
 
+std::deque<int> newlyConnectedClients;
+
 // Initialize display:
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool displayChangesQueued = false;
 
 // Initialize WebSocket:
-AsyncWebSocket ws("/ws");
+// REQUIRES WebSockets.h to have #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC
+WebSocketsServer ws = WebSocketsServer(81);
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  switch(type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[%u] Disconnected!\n", num);
+      break;
+    case WStype_CONNECTED:
+    {
+      IPAddress ip = ws.remoteIP(num);
+      Serial.printf("Client:[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+      newlyConnectedClients.push_back(num);
+    }
+    break;
+    case WStype_TEXT:
+    {
+      ws.broadcastTXT(payload, length);
+
+      JsonDocument msg;
+      deserializeJson(msg, payload);
+
+      int clearFlag = msg["clearFlag"];
+      if (clearFlag) display.fillRect(0, 0, 128, 64, BLACK);
+      else {
+        int color = msg["color"]; 
+        int x = msg["x"]; 
+        int y = msg["y"];
+        int size = msg["cellSize"];
+        display.fillRect(x, y, size, size, color);
+      }
+      displayChangesQueued = true;
+    }
+    break;
+  }
+}
 
 unsigned long lastWifiCheck = 0;
-
-// Handle any incoming display data from the web interface, and mirror it to the display.
-void recvWebSktMsg(void *arg, uint8_t *data, size_t len) {
-  AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    data[len] = 0;
-    ws.textAll((char*)data);
-
-    JsonDocument msg;
-    deserializeJson(msg, data);
-
-    int clearFlag = msg["clearFlag"];
-
-    if (clearFlag) display.fillRect(0, 0, 128, 64, BLACK);
-    else {
-      int color = msg["color"]; 
-      int x = msg["x"]; 
-      int y = msg["y"];
-      int size = msg["cellSize"];
-      display.fillRect(x, y, size, size, color);
-    }
-    displayChangesQueued = true;
-  }
-}
-
-// Handle WebSocket Events
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  switch (type) {
-    case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      break;
-    case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
-      break;
-    case WS_EVT_DATA:
-        recvWebSktMsg(arg, data, len);
-        break;
-    case WS_EVT_PONG:
-      break;
-    case WS_EVT_ERROR:
-     break;
-  }
-}
 
 // Initialize FS
 void initLittleFS() {
@@ -123,8 +118,8 @@ void setup(void) {
     request->send(LittleFS, "/index.html", "text/html");
   });
   server.serveStatic("/", LittleFS, "/");
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
+  ws.begin();
+  ws.onEvent(webSocketEvent);
   server.begin();
 
   // Initialize display
@@ -150,5 +145,18 @@ void loop(void) {
     display.display();
   }
 
-  ws.cleanupClients(4);
+  // If a new client has recently connected, send them a binary representation of the current canvas state.
+  if (!newlyConnectedClients.empty()) {
+    int numBytes = (SCREEN_WIDTH * SCREEN_HEIGHT + 7) / 8;
+    std::vector<uint8_t> binaryData(numBytes, 0);
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      for (int x = 0; x < SCREEN_WIDTH; x++) {
+        int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+        int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+        binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
+      }
+    }
+    ws.sendBIN(newlyConnectedClients.front(), binaryData.data(), binaryData.size());
+    newlyConnectedClients.pop_front();
+  }
 }
