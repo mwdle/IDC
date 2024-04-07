@@ -26,8 +26,6 @@ IPAddress ip(192, 168, 0, 98);
 
 AsyncWebServer server(80);
 
-std::deque<int> newlyConnectedClients;
-
 // Initialize display:
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool displayChangesQueued = false;
@@ -35,6 +33,9 @@ bool displayChangesQueued = false;
 // Initialize WebSocket:
 // REQUIRES WebSockets.h to have #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC
 WebSocketsServer ws = WebSocketsServer(81);
+std::deque<int> newlyConnectedClients;
+
+unsigned long lastWifiCheck = 0;
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
@@ -70,25 +71,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
   }
 }
 
-unsigned long lastWifiCheck = 0;
-
-// Initialize FS
-void initLittleFS() {
-  if (!LittleFS.begin()) {
-    Serial.println("\nAn error has occurred while mounting FS");
-  }
-  else{
-    Serial.println("\nFS mounted successfully");
-  }
-}
-
 void setup(void) {
   // Initialize LED Pina
   pinMode(errorLed, OUTPUT);
 
   Serial.begin(115200);
 
-  initLittleFS();
+    if (!LittleFS.begin()) {
+    Serial.println("\nAn error has occurred while mounting FS");
+  }
+  else{
+    Serial.println("\nFS mounted successfully");
+  }
   File file = LittleFS.open("secret", "r");
   if (file) {
     ssid = file.readStringUntil('\n');
