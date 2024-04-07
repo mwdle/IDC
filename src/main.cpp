@@ -37,6 +37,9 @@ std::deque<int> newlyConnectedClients;
 
 unsigned long lastWifiCheck = 0;
 
+// Handles any websocket client connections/disconnections and messages.
+// Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
+// Any new clients are added to a queue to be sent the current canvas state.
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
@@ -77,7 +80,8 @@ void setup(void) {
 
   Serial.begin(115200);
 
-    if (!LittleFS.begin()) {
+  // Initialize Filesystem and read Wi-fi credentials from file.
+  if (!LittleFS.begin()) {
     Serial.println("\nAn error has occurred while mounting FS");
   }
   else{
@@ -107,6 +111,7 @@ void setup(void) {
   digitalWrite(errorLed, HIGH);
   Serial.printf("Wifi Connected! IP Address: %s\n", WiFi.localIP().toString().c_str());
 
+  // Initialize OTA & Websocket servers.
   ElegantOTA.begin(&server);
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
