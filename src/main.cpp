@@ -37,7 +37,7 @@ std::deque<int> newlyConnectedClients;
 
 unsigned long lastWifiCheck = 0;
 
-// Handles any websocket client connections/disconnections and messages.
+// Handle any websocket client connections/disconnections and messages.
 // Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
 // Any new clients are added to a queue to be sent the current canvas state.
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -59,14 +59,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       JsonDocument msg;
       deserializeJson(msg, payload);
 
-      int clearFlag = msg["clearFlag"];
-      if (clearFlag) display.fillRect(0, 0, 128, 64, BLACK);
+      bool clear = msg["clear"];
+      if (clear) display.fillRect(0, 0, 128, 64, BLACK);
       else {
-        int color = msg["color"]; 
+        bool pixelOn = msg["pixelOn"]; 
         int x = msg["x"]; 
         int y = msg["y"];
-        int size = msg["cellSize"];
-        display.fillRect(x, y, size, size, color);
+        int size = msg["size"];
+        display.fillRect(x, y, size, size, pixelOn);
       }
       displayChangesQueued = true;
     }
@@ -104,9 +104,9 @@ void setup(void) {
   while(WiFi.status() != WL_CONNECTED)
   {
     digitalWrite(errorLed, LOW);   // Turn on the red onboard LED by making the voltage LOW
-    delay(500);                    
+    delay(300);                    
     digitalWrite(errorLed, HIGH);  // Turn off the red onboard LED by making the voltage HIGH
-    delay(800);
+    delay(600);
   }
   digitalWrite(errorLed, HIGH);
   Serial.printf("Wifi Connected! IP Address: %s\n", WiFi.localIP().toString().c_str());
@@ -125,18 +125,32 @@ void setup(void) {
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
     Serial.println("Display intialization failed");
   }
-  delay(2000);
+  delay(500);
   display.clearDisplay();
   displayChangesQueued = true;
+}
+
+// Convert the current canvas state into a binary representation with 1 bit per pixel and send it to the client.
+void sendCanvasToClient(int client) {
+  int numBytes = (SCREEN_WIDTH * SCREEN_HEIGHT + 7) / 8;
+  std::vector<uint8_t> binaryData(numBytes, 0);
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+      int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+      binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
+    }
+  }
+  ws.sendBIN(client, binaryData.data(), binaryData.size());
 }
 
 void loop(void) {
   ElegantOTA.loop();
 
-  if(millis() - lastWifiCheck > 3000) {
-    lastWifiCheck = millis();
+  if(millis() - lastWifiCheck > 2000) {
     if (WiFi.status() != WL_CONNECTED) digitalWrite(errorLed, LOW); // Turn on red onboard LED by setting voltage LOW            
     else digitalWrite(errorLed, HIGH); // Turn off red onboard LED by setting voltage HIGH
+    lastWifiCheck = millis();
   }
 
   if (displayChangesQueued) {
@@ -146,16 +160,7 @@ void loop(void) {
 
   // If a new client has recently connected, send them a binary representation of the current canvas state.
   if (!newlyConnectedClients.empty()) {
-    int numBytes = (SCREEN_WIDTH * SCREEN_HEIGHT + 7) / 8;
-    std::vector<uint8_t> binaryData(numBytes, 0);
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      for (int x = 0; x < SCREEN_WIDTH; x++) {
-        int byteIndex = (y * SCREEN_WIDTH + x) / 8;
-        int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
-        binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
-      }
-    }
-    ws.sendBIN(newlyConnectedClients.front(), binaryData.data(), binaryData.size());
+    sendCanvasToClient(newlyConnectedClients.front());
     newlyConnectedClients.pop_front();
   }
 }
