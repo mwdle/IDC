@@ -25,13 +25,9 @@ IPAddress ip(192, 168, 0, 98);
 
 AsyncWebServer server(80);
 
-std::deque<std::string> queue();
-
-std::deque<AsyncWebSocketClient*> newClientQueue;
-// string pixel;
-
 // Initialize display:
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+bool displayChangesQueued = false;
 
 // Initialize WebSocket:
 AsyncWebSocket ws("/ws");
@@ -40,13 +36,25 @@ unsigned long lastWifiCheck = 0;
 
 // Handle any incoming display data from the web interface, and mirror it to the display.
 void recvWebSktMsg(void *arg, uint8_t *data, size_t len) {
-  ESP.wdtFeed();
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    
     data[len] = 0;
-    std::string msg((char*)data);
-    queue.push_back(msg);
+    ws.textAll((char*)data);
+
+    JsonDocument msg;
+    deserializeJson(msg, data);
+
+    int clearFlag = msg["clearFlag"];
+
+    if (clearFlag) display.fillRect(0, 0, 128, 64, BLACK);
+    else {
+      int color = msg["color"]; 
+      int x = msg["x"]; 
+      int y = msg["y"];
+      int size = msg["cellSize"];
+      display.fillRect(x, y, size, size, color);
+    }
+    displayChangesQueued = true;
   }
 }
 
@@ -55,10 +63,6 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   switch (type) {
     case WS_EVT_CONNECT:
       Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      // // ws.text(client->id(), pixels.str().c_str());
-      // notifyClients(pixels.str().c_str());
-      // ESP.wdtFeed();
-      // pixels.clear();
       break;
     case WS_EVT_DISCONNECT:
       Serial.printf("WebSocket client #%u disconnected\n", client->id());
@@ -129,7 +133,7 @@ void setup(void) {
   }
   delay(2000);
   display.clearDisplay();
-  display.display();
+  displayChangesQueued = true;
 }
 
 void loop(void) {
@@ -141,30 +145,9 @@ void loop(void) {
     else digitalWrite(errorLed, HIGH); // Turn off red onboard LED by setting voltage HIGH
   }
 
-  if (!queue.empty() && ws.availableForWriteAll()) {
-    Serial.printf("QS: %d\n", queue.size());
-    Serial.printf("Remaining Heap: %u\n", ESP.getFreeHeap());
-    std::string msg = queue.front();
-    ws.textAll(msg.c_str());
-    ESP.wdtFeed();
-    int values[7];
-    int index = 0;
-    std::string::const_iterator start = msg.begin();
-    std::string::const_iterator end = msg.end();
-    std::string::const_iterator next = std::find(start, end, ';');
-    while (next != end) {
-        values[index++] = std::stoi(std::string(start, next));
-        start = next + 1;
-        next = std::find(start, end, ';');
-        ESP.wdtFeed();
-    }
-    values[index++] = std::stoi(std::string(start, next));
-
-    if (values[0] == 1) display.fillRect(0, 0, 128, 64, BLACK);
-    else display.fillRect(values[3], values[4], values[6], values[6], values[2]);
+  if (displayChangesQueued) {
+    displayChangesQueued = false;
     display.display();
-    ESP.wdtFeed();
-    queue.pop_front();
   }
 
   ws.cleanupClients(4);
