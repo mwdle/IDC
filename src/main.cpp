@@ -33,7 +33,7 @@ bool displayChangesQueued = false;
 // Initialize WebSocket:
 // REQUIRES WebSockets.h to have #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC OR loop() to have ws.loop();
 WebSocketsServer ws = WebSocketsServer(81);
-std::deque<int> newlyConnectedClients;
+std::deque<int> clientsNeedingCanvas;
 
 unsigned long lastWifiCheck = 0;
 
@@ -49,7 +49,7 @@ void webSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t leng
     {
       IPAddress ip = ws.remoteIP(client);
       Serial.printf("Client:[%u] Connected from %d.%d.%d.%d url: %s\n", client, ip[0], ip[1], ip[2], ip[3], payload);
-      newlyConnectedClients.push_back(client);
+      clientsNeedingCanvas.push_back(client);
     }
     break;
     case WStype_TEXT:
@@ -83,7 +83,7 @@ void webSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t leng
       }
       displayChangesQueued = true;
       int clients = ws.connectedClients();
-      for (int i = 0; i < clients; i++) newlyConnectedClients.push_back(i);
+      for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
     }
     break;
   }
@@ -156,11 +156,10 @@ void sendCanvasToClientsInQ() {
       binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
     }
   }
-  while (!newlyConnectedClients.empty()) {
-    ESP.wdtFeed();
-    int client = newlyConnectedClients.front();
+  while (!clientsNeedingCanvas.empty()) {
+    int client = clientsNeedingCanvas.front();
     if (ws.clientIsConnected(client)) ws.sendBIN(client, binaryData.data(), binaryData.size());
-    newlyConnectedClients.pop_front();
+    clientsNeedingCanvas.pop_front();
   }
 }
 
@@ -178,7 +177,7 @@ void loop(void) {
     display.display();
   }
 
-  if (!newlyConnectedClients.empty()) {
+  if (!clientsNeedingCanvas.empty()) {
     sendCanvasToClientsInQ();
   }
 }
