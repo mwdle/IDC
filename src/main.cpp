@@ -35,12 +35,15 @@ bool displayChangesQueued = false;
 WebSocketsServer ws = WebSocketsServer(81);
 std::deque<int> newlyConnectedClients;
 
+uint8_t* uploadedImage = NULL;
+size_t uploadedImageLength = 0;
+
 unsigned long lastWifiCheck = 0;
 
 // Handle any websocket client connections/disconnections and messages.
 // Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
 // Any new clients are added to a queue to be sent the current canvas state.
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       Serial.printf("[%u] Disconnected!\n", num);
@@ -73,16 +76,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     break;
     case WStype_BIN:
     {
-      ws.broadcastBIN(payload, length);
-      for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-          int byteIndex = (y * SCREEN_WIDTH + x) / 8;
-          int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
-          int color = (payload[byteIndex] >> bitIndex) & 1;
-          display.fillRect(x, y, 1, 1, color);
-        }
-      }
-      displayChangesQueued = true;
+      memcpy(uploadedImage, payload, length * sizeof(uint8_t));
+      uploadedImageLength = length;
     }
     break;
   }
@@ -170,6 +165,21 @@ void loop(void) {
   if (displayChangesQueued) {
     displayChangesQueued = false;
     display.display();
+  }
+
+  if (uploadedImage != NULL) {
+    ws.broadcastBIN(uploadedImage, uploadedImageLength);
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      for (int x = 0; x < SCREEN_WIDTH; x++) {
+        int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+        int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+        int color = (uploadedImage[byteIndex] >> bitIndex) & 1;
+        display.fillRect(x, y, 1, 1, color);
+      }
+    }
+    displayChangesQueued = true;
+    uploadedImage = NULL;
+    uploadedImageLength = 0;
   }
 
   // If a new client has recently connected, send them a binary representation of the current canvas state.
