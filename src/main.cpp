@@ -71,6 +71,20 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       displayChangesQueued = true;
     }
     break;
+    case WStype_BIN:
+    {
+      ws.broadcastBIN(payload, length);
+      for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        for (int x = 0; x < SCREEN_WIDTH; x++) {
+          int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+          int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+          int color = (payload[byteIndex] >> bitIndex) & 1;
+          display.fillRect(x, y, 1, 1, color);
+        }
+      }
+      displayChangesQueued = true;
+    }
+    break;
   }
 }
 
