@@ -33,23 +33,23 @@ bool displayChangesQueued = false;
 // Initialize WebSocket:
 // REQUIRES WebSockets.h to have #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC OR loop() to have ws.loop();
 WebSocketsServer ws = WebSocketsServer(81);
-std::deque<int> newlyConnectedClients;
+std::deque<int> clientsNeedingCanvas;
 
 unsigned long lastWifiCheck = 0;
 
 // Handle any websocket client connections/disconnections and messages.
 // Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
 // Any new clients are added to a queue to be sent the current canvas state.
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void webSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
-      Serial.printf("[%u] Disconnected!\n", num);
+      Serial.printf("[%u] Disconnected!\n", client);
       break;
     case WStype_CONNECTED:
     {
-      IPAddress ip = ws.remoteIP(num);
-      Serial.printf("Client:[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-      newlyConnectedClients.push_back(num);
+      IPAddress ip = ws.remoteIP(client);
+      Serial.printf("Client:[%u] Connected from %d.%d.%d.%d url: %s\n", client, ip[0], ip[1], ip[2], ip[3], payload);
+      clientsNeedingCanvas.push_back(client);
     }
     break;
     case WStype_TEXT:
@@ -69,6 +69,21 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         display.fillRect(x, y, size, size, pixelOn);
       }
       displayChangesQueued = true;
+    }
+    break;
+    case WStype_BIN:
+    {
+      for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        for (int x = 0; x < SCREEN_WIDTH; x++) {
+          int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+          int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+          int color = (payload[byteIndex] >> bitIndex) & 1;
+          display.fillRect(x, y, 1, 1, color);
+        }
+      }
+      displayChangesQueued = true;
+      int clients = ws.connectedClients();
+      for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
     }
     break;
   }
@@ -131,7 +146,7 @@ void setup(void) {
 }
 
 // Convert the current canvas state into a binary representation with 1 bit per pixel and send it to the client.
-void sendCanvasToClient(int client) {
+void sendCanvasToClientsInQ() {
   int numBytes = (SCREEN_WIDTH * SCREEN_HEIGHT + 7) / 8;
   std::vector<uint8_t> binaryData(numBytes, 0);
   for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -141,7 +156,11 @@ void sendCanvasToClient(int client) {
       binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
     }
   }
-  ws.sendBIN(client, binaryData.data(), binaryData.size());
+  while (!clientsNeedingCanvas.empty()) {
+    int client = clientsNeedingCanvas.front();
+    if (ws.clientIsConnected(client)) ws.sendBIN(client, binaryData.data(), binaryData.size());
+    clientsNeedingCanvas.pop_front();
+  }
 }
 
 void loop(void) {
@@ -158,9 +177,7 @@ void loop(void) {
     display.display();
   }
 
-  // If a new client has recently connected, send them a binary representation of the current canvas state.
-  if (!newlyConnectedClients.empty()) {
-    sendCanvasToClient(newlyConnectedClients.front());
-    newlyConnectedClients.pop_front();
+  if (!clientsNeedingCanvas.empty()) {
+    sendCanvasToClientsInQ();
   }
 }
