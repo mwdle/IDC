@@ -1,1 +1,41 @@
-<!doctypehtml><html lang=en><title>ICC</title><link href=styles.css rel=stylesheet><link href=favicon.png rel=icon type=image/x-icon><div id=container><h1 class="centered title">ICC - I2C Canvas Controller</h1><div class=centered><div id=guide></div><canvas id=canvas></canvas></div><div class="centered penControls"><label for=eraserToggleCheckbox id=toggleEraserLabel>Eraser Toggle:</label> <input id=eraserToggleCheckbox type=checkbox></div><div class="centered brushControls"><label for=brush-select>Brush Size:</label> <select id=brush-select><option value=1>1x<option value=2>2x<option value=4>4x<option value=8>8x<option value=16>16x</select></div><div class=centered><button id=clearButton type=button>Clear Canvas</button></div><div class=centered><button id=imageUploadButton for=imageUpload>Upload an image</button> <input id=imageUpload type=file accept=image/*> <button id=downloadButton type=button>Download canvas image</button></div></div><script src=script.js></script>
+<!-- Canvas HTML ADAPTED FROM https://codepen.io/dcode-software/pen/yLvWNpx -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>ICC</title>
+    <link rel="stylesheet" href="styles.css" type="text/css">
+    <link rel="icon" type="image/x-icon" href="favicon.png">  
+</head>
+<body>
+    <div id="container">
+        <h1 class="title centered">ICC - I2C Canvas Controller</h1>
+        <div class="centered">
+            <div id="guide"></div>
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="penControls centered">
+            <label id="toggleEraserLabel" for="eraserToggleCheckbox">Eraser Toggle:</label>
+            <input type="checkbox" id="eraserToggleCheckbox">
+        </div>
+        <div class="brushControls centered">
+            <label for="brush-select">Brush Size:</label>
+            <select id="brush-select">
+                <option value="1">1x</option>
+                <option value="2">2x</option>
+                <option value="4">4x</option>
+                <option value="8">8x</option>
+                <option value="16">16x</option>
+            </select>
+        </div>
+        <div class="centered">
+            <button type="button" id="clearButton">Clear Canvas</button>
+        </div>
+        <div class="centered">
+            <button for="imageUpload" id="imageUploadButton">Upload an image</button>
+            <input type="file" id="imageUpload" accept="image/*">
+            <button type="button" id="downloadButton">Download canvas image</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

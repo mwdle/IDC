@@ -1,4 +1,0 @@
-*.js linguist-language=JavaScript
-*.css linguist-language=CSS
-data/script.js linguist-detectable=true
-data/styles.css linguist-detectable=true
