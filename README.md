@@ -14,7 +14,7 @@ Stateful multi-client web-based drawing canvas mirrored onto an I2C display and 
 * Internet connection status indicator: Red onboard LED will illuminate whenever the ESP is not connected to a Wi-Fi network.
 * OTA Updates - includes ElegantOTA library to allow for Over-The-Air firmware and filesystem updates (http://\<espIP\>/update).
 
-# Specifications and things you should know
+## Specifications and things you should know
 All builds were created and tested using the PlatformIO IDE extension for VSCode and Espressif ESP8266 NodeMCU board paired with a 2 pin .96 Inch 128x64 I2C SSD1306 OLED display. Mileage may vary using other boards, IDE's, and displays.    <br><br>
 
 The following libraries/dependencies are required (for basic and network functions):
@@ -32,7 +32,7 @@ ALTERNATIVELY - Add the following line to the loop() function in main.cpp (perfo
 * ws.loop();
 
 
-## Network Info:
+### Network Info:
 * This program requires internet to function
 * You may need to change the subnet, gateway, and local_ip variables.    
 * The recommended way of storing your Wi-Fi credentials is in a file named "secret" that must be placed in the data folder of this project, and loaded onto the filesystem as described in the filesystem section below.
@@ -40,11 +40,11 @@ ALTERNATIVELY - Add the following line to the loop() function in main.cpp (perfo
   * Ensure you secret file uses LF (\\n) EOL sequence instead of CRLF (\\r\\n), otherwise the program will be unable to properly parse your Wi-Fi Credentials.
 * If you choose not to store your credentials in a file, you can simply set the main.cpp variables "ssid" and "password" accordingly.
 
-## Filesystem and Webpage Info:
+### Filesystem and Webpage Info:
 * The webpage resources required by this project must be uploaded to your microcontroller's filesystem independently of the compiled source code / firmware.
 * To upload the webpage resources to your microcontroller, in Arduino or PlatformIO, use the tool to build and upload the filesystem image. After doing so, you may build and upload the firmware.    
 * The filesystem used for this project is LittleFS (as opposed to the deprecated SPIFFS).
 
-## Pinout Info:
+### Pinout Info:
 * errorLED is the pin of your onboard red LED. This program uses pin D0 (16) on the ESP8266 NodeMCU.    
 * The default display pins (SCL and SDA) default to pins D1 and D2, respectively, on the ESP8266. However, these defaults can be overriden by adding the following to the setup(): Wire.begin(sda, scl);
