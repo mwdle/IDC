@@ -73,7 +73,7 @@ function dither(imgCtx, binaryRepresentation) {
 // Scales an image to fit physical display, converts it to black and white, and sends it to the server.
 function imageUpload(e) {
     let image = new Image();
-    image.src = window.URL.createObjectURL(e.target.files[0]);
+    image.src = window.URL.createObjectURL(document.getElementById('imageUpload').files[0]);
     image.onload = function() {
       let upload = document.createElement('canvas');
       let ctx = upload.getContext('2d');
@@ -289,5 +289,5 @@ canvas.addEventListener("dragover", function(e) {
 canvas.addEventListener("drop", function(e) {
   e.preventDefault();
   document.getElementById('imageUpload').files = e.dataTransfer.files;
-  imageUpload();
+  imageUpload(e);
 })
