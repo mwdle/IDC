@@ -71,7 +71,7 @@ function dither(imgCtx, binaryRepresentation) {
 } 
 
 // Scales an image to fit physical display, converts it to black and white, and sends it to the server.
-document.getElementById('imageUpload').addEventListener('change', function(e) {
+function imageUpload(e) {
     let image = new Image();
     image.src = window.URL.createObjectURL(e.target.files[0]);
     image.onload = function() {
@@ -94,7 +94,7 @@ document.getElementById('imageUpload').addEventListener('change', function(e) {
         console.log(error);
       } 
   };
-});
+}
 
 // Apply pixel changes from the server to the canvas.
 function parsePixelCommand(e) {
@@ -276,7 +276,18 @@ eraserToggle.addEventListener('change', eraserToggled);
 clearButton.addEventListener("click", clearCanvas);
 
 document.getElementById('downloadButton').addEventListener('click', downloadCanvas)
+document.getElementById('imageUpload').addEventListener('change', imageUpload);
 
 document.getElementById('imageUploadButton').addEventListener('click', function() {
   document.getElementById('imageUpload').click();
+})
+
+canvas.addEventListener("dragover", function(e) {
+  e.preventDefault();
+})
+
+canvas.addEventListener("drop", function(e) {
+  e.preventDefault();
+  document.getElementById('imageUpload').files = e.dataTransfer.files;
+  imageUpload();
 })
