@@ -31,7 +31,6 @@ The following line must be uncommented in the WebSockets.h file of the ArduinoWe
 ALTERNATIVELY - Add the following line to the loop() function in main.cpp (performance will be slower than using the ASYNC websocket network type):
 * ws.loop();
 
-
 ### Network Info:
 * This program requires internet to function
 * You may need to change the subnet, gateway, and local_ip variables.    
@@ -48,3 +47,6 @@ ALTERNATIVELY - Add the following line to the loop() function in main.cpp (perfo
 ### Pinout Info:
 * errorLED is the pin of your onboard red LED. This program uses pin D0 (16) on the ESP8266 NodeMCU.    
 * The default display pins (SCL and SDA) default to pins D1 and D2, respectively, on the ESP8266. However, these defaults can be overriden by adding the following to the setup(): Wire.begin(sda, scl);
+
+### License
+* This project is licensed under the GPL 3.0 license. However, please note that the images included in this repository are not covered by this license. For more information, see the `IMAGES_LICENSE.txt` file.

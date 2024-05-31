@@ -37,6 +37,19 @@ std::deque<int> clientsNeedingCanvas;
 
 unsigned long lastWifiCheck = 0;
 
+// Applies data from a binary image file to the display.
+void applyBinaryToDisplay(uint8_t* buf) {
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+      int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+      int color = (buf[byteIndex] >> bitIndex) & 1;
+      display.fillRect(x, y, 1, 1, color);
+    }
+  }
+  displayChangesQueued = true;
+}
+
 // Handle any websocket client connections/disconnections and messages.
 // Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
 // Any new clients are added to a queue to be sent the current canvas state.
@@ -73,15 +86,7 @@ void webSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t leng
     break;
     case WStype_BIN:
     {
-      for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-          int byteIndex = (y * SCREEN_WIDTH + x) / 8;
-          int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
-          int color = (payload[byteIndex] >> bitIndex) & 1;
-          display.fillRect(x, y, 1, 1, color);
-        }
-      }
-      displayChangesQueued = true;
+      applyBinaryToDisplay(payload);
       int clients = ws.connectedClients();
       for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
     }
@@ -142,6 +147,15 @@ void setup(void) {
   }
   delay(500);
   display.clearDisplay();
+  // Randomly select an image from the bootImages folder and apply it to the display after boot.
+  randomSeed(analogRead(A0));
+  std::string randomBootImage = "bootImages/icc" + std::to_string(random(1, 6)) + ".bin";
+  file = LittleFS.open(randomBootImage.c_str(), "r");
+  if (file) {
+    char buf[(SCREEN_WIDTH*SCREEN_HEIGHT)/8];
+    file.readBytes(buf, sizeof(buf));
+    applyBinaryToDisplay((uint8_t*)buf);
+  }
   displayChangesQueued = true;
 }
 
