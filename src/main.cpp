@@ -192,10 +192,11 @@ void sendCanvasToClientsInQ() {
 // Saves to the boot image if toBackup is true, otherwise saves to the image rotation.
 void saveImage(bool toBackup) {
   File file;
-  if (toBackup) file = LittleFS.open("/savedImages/icc0.dat", "w+");
+  std::string filepath = "/savedImages/icc" + std::to_string(currentlyDisplayedImage) +".dat";
+  if (toBackup) file = LittleFS.open(filepath.c_str(), "w+");
   else {
-    unsigned long imageNumber = 5;
-    std::string filepath = "/savedImages/icc" + std::to_string(imageNumber) +".dat";
+    unsigned long imageNumber = 1;
+    filepath = "/savedImages/icc" + std::to_string(imageNumber) +".dat";
     while (LittleFS.exists(filepath.c_str())) {
       filepath = "/savedImages/icc" + std::to_string(++imageNumber) +".dat";
     }
@@ -233,8 +234,8 @@ void loop(void) {
     else digitalWrite(errorLed, HIGH); // Turn off red onboard LED by setting voltage HIGH
     lastWifiCheck = millis();
   }
-
-  if (millis() - lastImageSave > 15000) { 
+  
+  if (millis() - lastImageSave > 5000) { 
     saveImage(true);
     lastImageSave = millis();
   }
