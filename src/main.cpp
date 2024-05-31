@@ -53,7 +53,7 @@ void applyBinaryToDisplay(uint8_t* buf) {
 // Handle any websocket client connections/disconnections and messages.
 // Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
 // Any new clients are added to a queue to be sent the current canvas state.
-void webSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
+void handleWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       Serial.printf("[%u] Disconnected!\n", client);
@@ -138,7 +138,7 @@ void setup(void) {
   });
   server.serveStatic("/", LittleFS, "/");
   ws.begin();
-  ws.onEvent(webSocketEvent);
+  ws.onEvent(handleWebSocketEvent);
   server.begin();
 
   // Initialize display
