@@ -200,7 +200,6 @@ void saveImage(bool toBackup) {
       filepath = "/savedImages/icc" + std::to_string(++imageNumber) +".dat";
     }
     file = LittleFS.open(filepath.c_str(), "w+");
-    currentlyDisplayedImage = imageNumber;
   }
   if (file) {
     std::vector<uint8_t> binaryData = convertCanvasToBinary();
