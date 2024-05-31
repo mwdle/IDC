@@ -56,6 +56,15 @@ function onClose(e) {
   setTimeout(initWebSocket, 2000);
 }
 
+function sendMessageToServer(data) {
+  try {
+    websocket.send(data);
+  }
+  catch (error) {
+    console.log(error);
+  } 
+}
+
 // Converts color image data into monochrome by randomly selecting threshold values from a distribution to produce a dithering effect.
 // Expects an image size of 8192 pixels.
 function dither(imgCtx, binaryRepresentation) {
@@ -71,7 +80,7 @@ function dither(imgCtx, binaryRepresentation) {
 } 
 
 // Scales an image to fit physical display, converts it to black and white, and sends it to the server.
-function imageUpload(e) {
+function uploadImageToServer(e) {
     let image = new Image();
     image.src = window.URL.createObjectURL(document.getElementById('imageUpload').files[0]);
     image.onload = function() {
@@ -87,12 +96,7 @@ function imageUpload(e) {
       // Convert the image to black and white and store it in a binary format to send to the server.
       let binaryRepresentation = new Uint8Array(1024);
       dither(ctx, binaryRepresentation);
-      try {
-        websocket.send(binaryRepresentation.buffer);
-      }
-      catch (error) {
-        console.log(error);
-      } 
+      sendMessageToServer(binaryRepresentation.buffer);
   };
 }
 
@@ -151,27 +155,40 @@ function setupGridGuides() {
   }
 }
 
-
-// Sends a websocket message to the server indicating the pixel change.
-function sendChangeToServer(cellx, celly) {
+function requestImageSaveOnServer() {
   const msg = {
     clear: false,
+    saveCanvasToFile: true
+  };
+  sendMessageToServer(JSON.stringify(msg));
+}
+
+function requestNextSavedImageFromServer() {
+  const msg = {
+    clear: false,
+    saveCanvasToFile: false,
+    showNextSavedImage: true
+  };
+  sendMessageToServer(JSON.stringify(msg));
+}
+
+// Sends a websocket message to the server indicating the pixel change.
+function sendPixelChangeToServer(cellx, celly) {
+  const msg = {
+    clear: false,
+    saveCanvasToFile: false,
+    showNextSavedImage: false,
     pixelOn: !eraserOn,
     x: Math.floor(cellx / canvasMultiplier),
     y: Math.floor(celly / canvasMultiplier),
     size: brushSize
   };
-  try {
-    websocket.send(JSON.stringify(msg));
-  }
-  catch (error) {
-    console.log(error);
-  }
+  sendMessageToServer(JSON.stringify(msg));
 }
 
 // Sets an x,y pixel using the currently selected brush size and eraser settings.
 function fillCell(cellx, celly) {
-  sendChangeToServer(cellx, celly);
+  sendPixelChangeToServer(cellx, celly);
   if (eraserOn) drawing.fillStyle = "#242526";
   else drawing.fillStyle = "#FFFFFF";
   drawing.fillRect(cellx, celly, cellSideLength, cellSideLength);
@@ -229,12 +246,7 @@ function clearCanvas() {
   const msg = {
     clear: true,
   };
-  try {
-    websocket.send(JSON.stringify(msg));
-  }
-  catch (error) {
-    console.log(error);
-  }
+  sendMessageToServer(JSON.stringify(msg));
 }
 
 // Handle brush size changes
@@ -276,7 +288,9 @@ eraserToggle.addEventListener('change', eraserToggled);
 clearButton.addEventListener("click", clearCanvas);
 
 document.getElementById('downloadButton').addEventListener('click', downloadCanvas)
-document.getElementById('imageUpload').addEventListener('change', imageUpload);
+document.getElementById('imageUpload').addEventListener('change', uploadImageToServer);
+document.getElementById('saveOnServerButton').addEventListener('click', requestImageSaveOnServer);
+document.getElementById('requestNextImageButton').addEventListener('click', requestNextSavedImageFromServer);
 
 document.getElementById('imageUploadButton').addEventListener('click', function() {
   document.getElementById('imageUpload').click();
@@ -289,5 +303,5 @@ canvas.addEventListener("dragover", function(e) {
 canvas.addEventListener("drop", function(e) {
   e.preventDefault();
   document.getElementById('imageUpload').files = e.dataTransfer.files;
-  imageUpload(e);
+  uploadImageToServer(e);
 })

@@ -37,6 +37,11 @@ std::deque<int> clientsNeedingCanvas;
 
 unsigned long lastWifiCheck = 0;
 
+unsigned long lastImageSave = 0;
+unsigned long currentlyDisplayedImage = 0;
+bool imageSaveRequested = false;
+bool nextImageRequested = false;
+
 // Applies data from a binary image file to the display.
 void applyBinaryToDisplay(uint8_t* buf) {
   for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -46,6 +51,26 @@ void applyBinaryToDisplay(uint8_t* buf) {
       int color = (buf[byteIndex] >> bitIndex) & 1;
       display.fillRect(x, y, 1, 1, color);
     }
+  }
+  displayChangesQueued = true;
+}
+
+void handleIncomingCommand(uint8_t* payload, size_t length) {
+  ws.broadcastTXT(payload, length);
+
+  JsonDocument msg;
+  deserializeJson(msg, payload);
+
+  bool clear = msg["clear"];
+  if (clear) display.fillRect(0, 0, 128, 64, BLACK);
+  else if (msg["saveCanvasToFile"]) imageSaveRequested = true;
+  else if (msg["showNextSavedImage"]) nextImageRequested = true;
+  else {
+    bool pixelOn = msg["pixelOn"]; 
+    int x = msg["x"]; 
+    int y = msg["y"];
+    int size = msg["size"];
+    display.fillRect(x, y, size, size, pixelOn);
   }
   displayChangesQueued = true;
 }
@@ -67,21 +92,7 @@ void handleWebSocketEvent(uint8_t client, WStype_t type, uint8_t* payload, size_
     break;
     case WStype_TEXT:
     {
-      ws.broadcastTXT(payload, length);
-
-      JsonDocument msg;
-      deserializeJson(msg, payload);
-
-      bool clear = msg["clear"];
-      if (clear) display.fillRect(0, 0, 128, 64, BLACK);
-      else {
-        bool pixelOn = msg["pixelOn"]; 
-        int x = msg["x"]; 
-        int y = msg["y"];
-        int size = msg["size"];
-        display.fillRect(x, y, size, size, pixelOn);
-      }
-      displayChangesQueued = true;
+      handleIncomingCommand(payload, length);
     }
     break;
     case WStype_BIN:
@@ -147,20 +158,13 @@ void setup(void) {
   }
   delay(500);
   display.clearDisplay();
-  // Randomly select an image from the bootImages folder and apply it to the display after boot.
-  randomSeed(analogRead(A0));
-  std::string randomBootImage = "bootImages/icc" + std::to_string(random(1, 6)) + ".bin";
-  file = LittleFS.open(randomBootImage.c_str(), "r");
-  if (file) {
-    char buf[(SCREEN_WIDTH*SCREEN_HEIGHT)/8];
-    file.readBytes(buf, sizeof(buf));
-    applyBinaryToDisplay((uint8_t*)buf);
-  }
-  displayChangesQueued = true;
+  file = LittleFS.open("/savedImages/icc0.dat", "r");
+  char buf[(SCREEN_WIDTH*SCREEN_HEIGHT)/8];
+  if (file) file.readBytes(buf, sizeof(buf));
+  applyBinaryToDisplay((uint8_t*)buf);
 }
 
-// Convert the current canvas state into a binary representation with 1 bit per pixel and send it to the client.
-void sendCanvasToClientsInQ() {
+std::vector<uint8_t> convertCanvasToBinary() {
   int numBytes = (SCREEN_WIDTH * SCREEN_HEIGHT + 7) / 8;
   std::vector<uint8_t> binaryData(numBytes, 0);
   for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -170,11 +174,56 @@ void sendCanvasToClientsInQ() {
       binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
     }
   }
+  return binaryData;
+}
+
+// Send a binary representation of the canvas to all clients who don't yet have it.
+// Resends up to 2 times in case of transmission failure.
+void sendCanvasToClientsInQ() {
+  std::vector<uint8_t> binaryData = convertCanvasToBinary();
   while (!clientsNeedingCanvas.empty()) {
     int client = clientsNeedingCanvas.front();
     if (ws.clientIsConnected(client)) ws.sendBIN(client, binaryData.data(), binaryData.size());
     clientsNeedingCanvas.pop_front();
   }
+}
+
+// Backs up the canvas image to a file.
+// Saves to the boot image if toBackup is true, otherwise saves to the image rotation.
+void saveImage(bool toBackup) {
+  File file;
+  if (toBackup) file = LittleFS.open("/savedImages/icc0.dat", "w+");
+  else {
+    unsigned long imageNumber = 5;
+    std::string filepath = "/savedImages/icc" + std::to_string(imageNumber) +".dat";
+    while (LittleFS.exists(filepath.c_str())) {
+      filepath = "/savedImages/icc" + std::to_string(++imageNumber) +".dat";
+    }
+    file = LittleFS.open(filepath.c_str(), "w+");
+    currentlyDisplayedImage = imageNumber;
+  }
+  if (file) {
+    std::vector<uint8_t> binaryData = convertCanvasToBinary();
+    file.write(binaryData.data(), binaryData.size());
+  }
+}
+
+void displayNextImageInRotation() {
+  std::string filepath = "/savedImages/icc" + std::to_string(++currentlyDisplayedImage) +".dat";
+  File file;
+  char buf[(SCREEN_WIDTH*SCREEN_HEIGHT)/8];
+  if (LittleFS.exists(filepath.c_str())) {
+    file = LittleFS.open(filepath.c_str(), "r");
+  }
+  else {
+    currentlyDisplayedImage = 0;
+    filepath = "/savedImages/icc" + std::to_string(currentlyDisplayedImage) +".dat";
+    file = LittleFS.open(filepath.c_str(), "r");
+  }
+  if (file) file.readBytes(buf, sizeof(buf));
+  applyBinaryToDisplay((uint8_t*)buf);
+  int clients = ws.connectedClients();
+  for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
 }
 
 void loop(void) {
@@ -184,6 +233,21 @@ void loop(void) {
     if (WiFi.status() != WL_CONNECTED) digitalWrite(errorLed, LOW); // Turn on red onboard LED by setting voltage LOW            
     else digitalWrite(errorLed, HIGH); // Turn off red onboard LED by setting voltage HIGH
     lastWifiCheck = millis();
+  }
+
+  if (millis() - lastImageSave > 15000) { 
+    saveImage(true);
+    lastImageSave = millis();
+  }
+
+  if (imageSaveRequested) {
+    saveImage(false);
+    imageSaveRequested = false;
+  }
+
+  if (nextImageRequested) {
+    displayNextImageInRotation();
+    nextImageRequested = false;
   }
 
   if (displayChangesQueued) {

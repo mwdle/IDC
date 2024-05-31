@@ -7,7 +7,7 @@ Stateful multi-client web-based drawing canvas mirrored onto an I2C display and 
 
 ## Functionality:
 * Webserver with interactive pixel canvas that mirrors input to attached I2C displays and all webserver clients in realtime (http://\<espIP\>:443).
-  * Users are able draw, erase, change brush size, clear the canvas, upload images to the canvas, and download the canvas image.
+  * Users are able draw, erase, change brush size, clear the canvas, upload images to the canvas (via file selector or drag and drop), and download the canvas image.
   * Uploaded images are automatically downscaled to 128x64 and converted to black and white. Sample images to upload are available in the sampleImages folder.
     * Due to the limited physical display size, large and/or complex images may not appear as expected after processing.
     * For best results, upload images that are already black and white and/or a 2:1 aspect ratio (ideally 128x64 pixels).
