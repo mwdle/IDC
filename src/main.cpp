@@ -16,7 +16,9 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-// Only put your credentials here if you aren't storing them on the filesystem. You can learn more about this in the README.
+int bytesPerImage = (SCREEN_WIDTH*SCREEN_HEIGHT) / 8;
+
+// Only put your Wi-Fi credentials here if you aren't storing them on the filesystem. You can learn more about this in the README.
 String ssid = "";
 String password = "";
 
@@ -29,7 +31,6 @@ AsyncWebServer server(80);
 // Initialize display:
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool displayChangesQueued = false;
-int bytesPerImage = (SCREEN_WIDTH*SCREEN_HEIGHT) / 8;
 
 // Initialize WebSocket:
 // REQUIRES WebSockets.h to have #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC OR loop() to have ws.loop();
@@ -38,14 +39,15 @@ std::deque<int> clientsNeedingCanvas;
 
 unsigned long lastWifiCheck = 0;
 
-unsigned long lastImageSave = 0;
-unsigned long currentlyDisplayedImage = 0;
+// Variables for canvas operations.
+unsigned long lastCanvasSave = 0;
+unsigned long currentCanvas = 0;
 bool newCanvasRequested = false;
-bool nextImageRequested = false;
+bool nextCanvasRequested = false;
 bool canvasDeletionRequested = false;
 
-// Applies data from a binary file to the display.
-void applyBinaryToDisplay(byte* buf) {
+// Applies a binary image file to the physical display.
+void applyImageToCanvas(byte* buf) {
   for (int y = 0; y < SCREEN_HEIGHT; y++) {
     for (int x = 0; x < SCREEN_WIDTH; x++) {
       int byteIndex = (y * SCREEN_WIDTH + x) / 8;
@@ -57,15 +59,14 @@ void applyBinaryToDisplay(byte* buf) {
   displayChangesQueued = true;
 }
 
+// Handles a websocket client message containing a command.
 void handleIncomingCommand(byte* payload, size_t length) {
-  ws.broadcastTXT(payload, length);
-
   JsonDocument msg;
   deserializeJson(msg, payload);
 
   if (msg["clear"]) display.fillRect(0, 0, 128, 64, BLACK);
   else if (msg["newCanvasRequested"]) newCanvasRequested = true;
-  else if (msg["nextImageRequested"]) nextImageRequested = true;
+  else if (msg["nextImageRequested"]) nextCanvasRequested = true;
   else {
     bool pixelOn = msg["pixelOn"]; 
     int x = msg["x"]; 
@@ -77,8 +78,9 @@ void handleIncomingCommand(byte* payload, size_t length) {
 }
 
 // Handle any websocket client connections/disconnections and messages.
-// Any incoming message from websocket client is parsed into a pixel change and applied to the display, and is also broadcast to all clients to synchronize canvas state.
-// Any new clients are added to a queue to be sent the current canvas state.
+// Any incoming command is relayed to all connected clients and handled accordingly.
+// Any incoming binary is relayed to all connected clients and applied to the physical display.
+// Any newly connected clients are sent the current state of the canvas.
 void handleWebSocketEvent(byte client, WStype_t type, byte* payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
@@ -93,17 +95,106 @@ void handleWebSocketEvent(byte client, WStype_t type, byte* payload, size_t leng
     break;
     case WStype_TEXT:
     {
+      ws.broadcastTXT(payload, length);
       handleIncomingCommand(payload, length);
     }
     break;
     case WStype_BIN:
     {
-      applyBinaryToDisplay(payload);
+      applyImageToCanvas(payload);
       int clients = ws.connectedClients();
       for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
     }
     break;
   }
+}
+
+// Returns a binary representation of the current canvas state.
+std::vector<byte> convertCanvasToBinary() {
+  std::vector<byte> binaryData(bytesPerImage, 0);
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      int byteIndex = (y * SCREEN_WIDTH + x) / 8;
+      int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
+      binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
+    }
+  }
+  return binaryData;
+}
+
+// Send a binary representation of the canvas to all clients in the queue.
+// Attempts to resend one time in case of transmission failure.
+void sendCanvasToClientsInQueue() {
+  std::vector<byte> binaryData = convertCanvasToBinary();
+  bool success = false;
+  while (!clientsNeedingCanvas.empty()) {
+    int client = clientsNeedingCanvas.front();
+    if (ws.clientIsConnected(client)) success = ws.sendBIN(client, binaryData.data(), binaryData.size());
+    if (!success && ws.clientIsConnected(client)) ws.sendBIN(client, binaryData.data(), binaryData.size());
+    clientsNeedingCanvas.pop_front();
+  }
+}
+
+// Saves the canvas state to the currently selected canvas file.
+void saveCanvasToFile() {
+  File file;
+  std::string filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
+  file = LittleFS.open(filepath.c_str(), "w+");
+  if (file) {
+    std::vector<byte> binaryData = convertCanvasToBinary();
+    file.write(binaryData.data(), binaryData.size());
+    file.close();
+  }
+}
+
+// Loads the next stored canvas from memory if found, otherwise loads the first canvas.
+void switchToNextCanvas() {
+  std::string filepath = "/icc" + std::to_string(++currentCanvas) + ".dat";
+  File file;
+  byte buf[bytesPerImage];
+  if (LittleFS.exists(filepath.c_str())) {
+    file = LittleFS.open(filepath.c_str(), "r");
+  }
+  else {
+    currentCanvas = 0;
+    filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
+    file = LittleFS.open(filepath.c_str(), "r");
+  }
+  if (file) {
+    file.readBytes((char*)buf, sizeof(buf));
+    file.close();
+  }
+  applyImageToCanvas(buf);
+  int clients = ws.connectedClients();
+  for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
+  file = LittleFS.open("/currentCanvas", "w+");
+  if (file) {
+    file.printf("%lu", currentCanvas);
+    file.close();
+  }
+}
+
+// Creates a new blank canvas file in memory and switches to it.
+void createNewCanvas() {
+  File file;
+  unsigned long imageNumber = 1;
+  std::string filepath = "/icc" + std::to_string(imageNumber) + ".dat";
+  while (LittleFS.exists(filepath.c_str())) {
+    filepath = "/icc" + std::to_string(++imageNumber) + ".dat";
+  }
+  file = LittleFS.open(filepath.c_str(), "w+");
+  byte buf[bytesPerImage] = {0};
+  if (file) {
+    file.write(buf, sizeof(buf));
+    file.close();
+  }
+  currentCanvas = imageNumber - 1;
+  switchToNextCanvas();
+}
+
+// Deletes the currently selected canvas from memory and switch to the next available canvas.
+void deleteCurrentCanvas() {
+
 }
 
 void setup(void) {
@@ -159,107 +250,21 @@ void setup(void) {
   }
   delay(500);
   display.clearDisplay();
-  if (LittleFS.exists("/currentlyDisplayedImage")) {
-    File file = LittleFS.open("/currentlyDisplayedImage", "r");
+  if (LittleFS.exists("/currentCanvas")) {
+    File file = LittleFS.open("/currentCanvas", "r");
     if (file) {
-      currentlyDisplayedImage = file.readStringUntil('\n').toInt();
+      currentCanvas = file.readStringUntil('\n').toInt();
       file.close();
     }
   }
-  std::string filepath = "/icc" + std::to_string(currentlyDisplayedImage) + ".dat";
+  std::string filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
   file = LittleFS.open(filepath.c_str(), "r");
   byte buf[bytesPerImage];
   if (file) {
     file.readBytes((char*)buf, bytesPerImage);
     file.close();
   }
-  applyBinaryToDisplay(buf);
-}
-
-std::vector<byte> convertCanvasToBinary() {
-  std::vector<byte> binaryData(bytesPerImage, 0);
-  for (int y = 0; y < SCREEN_HEIGHT; y++) {
-    for (int x = 0; x < SCREEN_WIDTH; x++) {
-      int byteIndex = (y * SCREEN_WIDTH + x) / 8;
-      int bitIndex = 7 - (y * SCREEN_WIDTH + x) % 8;
-      binaryData[byteIndex] |= (display.getPixel(x,y) << bitIndex);
-    }
-  }
-  return binaryData;
-}
-
-// Send a binary representation of the canvas to all clients who need it
-// Attempts to resend one time in case of transmission failure.
-void sendCanvasToClientsInQ() {
-  std::vector<byte> binaryData = convertCanvasToBinary();
-  bool success = false;
-  while (!clientsNeedingCanvas.empty()) {
-    int client = clientsNeedingCanvas.front();
-    if (ws.clientIsConnected(client)) success = ws.sendBIN(client, binaryData.data(), binaryData.size());
-    if (!success && ws.clientIsConnected(client)) ws.sendBIN(client, binaryData.data(), binaryData.size());
-    clientsNeedingCanvas.pop_front();
-  }
-}
-
-// Saves the canvas state to the currently selected file.
-void saveImage() {
-  File file;
-  std::string filepath = "/icc" + std::to_string(currentlyDisplayedImage) + ".dat";
-  file = LittleFS.open(filepath.c_str(), "w+");
-  if (file) {
-    std::vector<byte> binaryData = convertCanvasToBinary();
-    file.write(binaryData.data(), binaryData.size());
-    file.close();
-  }
-}
-
-// Displays the next saved image file found in memory.
-void displayNextImageInRotation() {
-  std::string filepath = "/icc" + std::to_string(++currentlyDisplayedImage) + ".dat";
-  File file;
-  byte buf[bytesPerImage];
-  if (LittleFS.exists(filepath.c_str())) {
-    file = LittleFS.open(filepath.c_str(), "r");
-  }
-  else {
-    currentlyDisplayedImage = 0;
-    filepath = "/icc" + std::to_string(currentlyDisplayedImage) + ".dat";
-    file = LittleFS.open(filepath.c_str(), "r");
-  }
-  if (file) {
-    file.readBytes((char*)buf, sizeof(buf));
-    file.close();
-  }
-  applyBinaryToDisplay(buf);
-  int clients = ws.connectedClients();
-  for (int i = 0; i < clients; i++) clientsNeedingCanvas.push_back(i);
-  file = LittleFS.open("/currentlyDisplayedImage", "w+");
-  if (file) {
-    file.printf("%lu", currentlyDisplayedImage);
-    file.close();
-  }
-}
-
-// Creates a new blank file on the server and sets it as the canvas. 
-void createBlankImage() {
-  File file;
-  unsigned long imageNumber = 1;
-  std::string filepath = "/icc" + std::to_string(imageNumber) + ".dat";
-  while (LittleFS.exists(filepath.c_str())) {
-    filepath = "/icc" + std::to_string(++imageNumber) + ".dat";
-  }
-  file = LittleFS.open(filepath.c_str(), "w+");
-  byte buf[bytesPerImage] = {0};
-  if (file) {
-    file.write(buf, sizeof(buf));
-    file.close();
-  }
-  currentlyDisplayedImage = imageNumber - 1;
-  displayNextImageInRotation();
-}
-
-void deleteCurrentCanvas() {
-
+  applyImageToCanvas(buf);
 }
 
 void loop(void) {
@@ -271,9 +276,9 @@ void loop(void) {
     lastWifiCheck = millis();
   }
   
-  if (millis() - lastImageSave > 1000) { 
-    saveImage();
-    lastImageSave = millis();
+  if (millis() - lastCanvasSave > 1000) { 
+    saveCanvasToFile();
+    lastCanvasSave = millis();
   }
 
   if (canvasDeletionRequested) {
@@ -282,13 +287,13 @@ void loop(void) {
   }
 
   if (newCanvasRequested) {
-    createBlankImage();
+    createNewCanvas();
     newCanvasRequested = false;
   }
 
-  if (nextImageRequested) {
-    displayNextImageInRotation();
-    nextImageRequested = false;
+  if (nextCanvasRequested) {
+    switchToNextCanvas();
+    nextCanvasRequested = false;
   }
 
   if (displayChangesQueued) {
@@ -297,6 +302,6 @@ void loop(void) {
   }
 
   if (!clientsNeedingCanvas.empty()) {
-    sendCanvasToClientsInQ();
+    sendCanvasToClientsInQueue();
   }
 }

@@ -6,9 +6,11 @@ Stateful multi-client web-based drawing canvas mirrored onto an I2C display and 
 </p>        
 
 ## Functionality:
-* Webserver with interactive pixel canvas that mirrors input to attached I2C displays and all webserver clients in realtime (http://\<espIP\>:443).
+* Webserver with interactive and stateful pixel canvas that mirrors input to attached I2C displays and all webserver clients in realtime (http://\<espIP\>).
   * Users are able draw, erase, change brush size, clear the canvas, upload images to the canvas (via file selector or drag and drop), and download the canvas image.
-  * Uploaded images are automatically downscaled to 128x64 and converted to black and white. Sample images to upload are available in the sampleImages folder.
+  * Users are able to create and delete canvases on the server, and rotate between available canvases.
+    * The currently selected canvas autosaves to a file every one second.
+  * Uploaded images are automatically downscaled to 128x64 and converted to black and white. A few sample images to upload are available in the sampleImages folder.
     * Due to the limited physical display size, large and/or complex images may not appear as expected after processing.
     * For best results, upload images that are already black and white and/or a 2:1 aspect ratio (ideally 128x64 pixels).
 * Internet connection status indicator: Red onboard LED will illuminate whenever the ESP is not connected to a Wi-Fi network.
