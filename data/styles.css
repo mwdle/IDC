@@ -77,7 +77,7 @@ select {
     display:none;
 }
 
-#imageUploadButton, #downloadButton, #saveOnServerButton, #requestNextImageButton {
+#imageUploadButton, #downloadButton, #newCanvasButton, #nextImageButton {
     background-color: #3c3c3c;
     color: #fff;
     border: none;
@@ -90,6 +90,6 @@ select {
     width: 175px;
 }
 
-#imageUploadButton:hover, #downloadButton:hover, #saveOnServerButton:hover, #requestNextImageButton:hover {
+#imageUploadButton:hover, #downloadButton:hover, #newCanvasButton:hover, #nextImageButton:hover {
     background-color: #626262;
 }
