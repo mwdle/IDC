@@ -77,7 +77,7 @@ select {
     display:none;
 }
 
-#imageUploadButton, #downloadButton, #newCanvasButton, #nextImageButton {
+#imageUploadButton, #downloadButton, #newCanvasButton, #nextCanvasButton, #deleteCanvasButton {
     background-color: #3c3c3c;
     color: #fff;
     border: none;
@@ -86,10 +86,10 @@ select {
     transition: background-color 0.3s ease;
     font-size: 12px;
     margin: 15px 5px;
-    padding: 10px 20px;
-    width: 175px;
+    padding: 10px 15px;
+    width: 170px;
 }
 
-#imageUploadButton:hover, #downloadButton:hover, #newCanvasButton:hover, #nextImageButton:hover {
+#imageUploadButton:hover, #downloadButton:hover, #newCanvasButton:hover, #nextCanvasButton:hover, #deleteCanvasButton:hover {
     background-color: #626262;
 }

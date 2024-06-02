@@ -154,7 +154,7 @@ function setupGridGuides() {
   }
 }
 
-function requestImageSaveOnServer() {
+function requestNewCanvasFromServer() {
   const msg = {
     clear: false,
     newCanvasRequested: true
@@ -162,11 +162,21 @@ function requestImageSaveOnServer() {
   sendMessageToServer(JSON.stringify(msg));
 }
 
-function requestNextSavedImageFromServer() {
+function requestNextCanvasFromServer() {
   const msg = {
     clear: false,
     newCanvasRequested: false,
-    nextImageRequested: true
+    nextCanvasRequested: true
+  };
+  sendMessageToServer(JSON.stringify(msg));
+}
+
+function requestDeleteCanvasFromServer() {
+  const msg = {
+    clear: false,
+    newCanvasRequested: false,
+    nextCanvasRequested: false,
+    deleteCanvasRequested: true
   };
   sendMessageToServer(JSON.stringify(msg));
 }
@@ -176,7 +186,8 @@ function sendPixelChangeToServer(cellx, celly) {
   const msg = {
     clear: false,
     newCanvasRequested: false,
-    nextImageRequested: false,
+    nextCanvasRequested: false,
+    currentCanvasPath: false,
     pixelOn: !eraserOn,
     x: Math.floor(cellx / canvasMultiplier),
     y: Math.floor(celly / canvasMultiplier),
@@ -268,7 +279,7 @@ function downloadCanvas() {
   let dataURL = canvas.toDataURL("image/png");
   let a = document.createElement('a');
   a.href = dataURL
-  a.download = "icc";
+  a.download = "idc";
   a.click();
 }
 
@@ -288,8 +299,10 @@ clearButton.addEventListener("click", clearCanvas);
 
 document.getElementById('downloadButton').addEventListener('click', downloadCanvas)
 document.getElementById('imageUpload').addEventListener('change', uploadImageToServer);
-document.getElementById('newCanvasButton').addEventListener('click', requestImageSaveOnServer);
-document.getElementById('nextImageButton').addEventListener('click', requestNextSavedImageFromServer);
+document.getElementById('newCanvasButton').addEventListener('click', requestNewCanvasFromServer);
+document.getElementById('nextCanvasButton').addEventListener('click', requestNextCanvasFromServer);
+document.getElementById('deleteCanvasButton').addEventListener('click', requestDeleteCanvasFromServer);
+
 
 document.getElementById('imageUploadButton').addEventListener('click', function() {
   document.getElementById('imageUpload').click();

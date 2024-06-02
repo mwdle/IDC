@@ -1,4 +1,4 @@
-# I2C Canvas Controller
+# I2C Display Controller
 Stateful multi-client web-based drawing canvas mirrored onto an I2C display and clients' canvases in realtime using an ESP8266 NodeMCU board.    <br><br>    
 <p align="center" float="left">
   <img src="webPage.gif" alt="animated" width="45%"/>
@@ -48,7 +48,7 @@ ALTERNATIVELY - Add the following line to the loop() function in main.cpp (perfo
 
 ### Pinout Info:
 * errorLED is the pin of your onboard red LED. This program uses pin D0 (16) on the ESP8266 NodeMCU.    
-* The default display pins (SCL and SDA) default to pins D1 and D2, respectively, on the ESP8266. However, these defaults can be overriden by adding the following to the setup(): Wire.begin(sda, scl);
+* The display pins: SCL and SDA, default to pins D1 and D2, respectively, on the ESP8266. However, these defaults can be overriden by adding the following to the setup(): Wire.begin(sda, scl);
 
 ### License
 * This project is licensed under the GPL 3.0 license. However, please note that the images included in this repository are not covered by this license. For more information, see the `IMAGES_LICENSE.txt` file.

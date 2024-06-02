@@ -21,14 +21,16 @@ int bytesPerImage = (SCREEN_WIDTH*SCREEN_HEIGHT) / 8;
 // Only put your Wi-Fi credentials here if you aren't storing them on the filesystem. You can learn more about this in the README.
 String ssid = "";
 String password = "";
-
 IPAddress subnet(255, 255, 255, 0);
 IPAddress gateway(192, 168, 0, 1);
+// Static IP 192.168.0.98 (change if needed)
 IPAddress ip(192, 168, 0, 98);
+// Variable to keep track of the last time the Wi-Fi connection status was checked.
+unsigned long lastWifiCheck = 0;
 
 AsyncWebServer server(80);
 
-// Initialize display:
+// Initialize display with ESP8266 default SCL and SDA pins -> D1 and D2, respectively.
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool displayChangesQueued = false;
 
@@ -37,16 +39,14 @@ bool displayChangesQueued = false;
 WebSocketsServer ws = WebSocketsServer(81);
 std::deque<int> clientsNeedingCanvas;
 
-unsigned long lastWifiCheck = 0;
-
 // Variables for canvas operations.
 unsigned long lastCanvasSave = 0;
 unsigned long currentCanvas = 0;
 bool newCanvasRequested = false;
 bool nextCanvasRequested = false;
-bool canvasDeletionRequested = false;
+bool deleteCanvasRequested = false;
 
-// Applies a binary image file to the physical display.
+// Applies a binary representation of an image to the physical display.
 void applyImageToCanvas(byte* buf) {
   for (int y = 0; y < SCREEN_HEIGHT; y++) {
     for (int x = 0; x < SCREEN_WIDTH; x++) {
@@ -60,13 +60,14 @@ void applyImageToCanvas(byte* buf) {
 }
 
 // Handles a websocket client message containing a command.
-void handleIncomingCommand(byte* payload, size_t length) {
+void handleCommand(byte* payload, size_t length) {
   JsonDocument msg;
   deserializeJson(msg, payload);
 
   if (msg["clear"]) display.fillRect(0, 0, 128, 64, BLACK);
   else if (msg["newCanvasRequested"]) newCanvasRequested = true;
-  else if (msg["nextImageRequested"]) nextCanvasRequested = true;
+  else if (msg["nextCanvasRequested"]) nextCanvasRequested = true;
+  else if (msg["deleteCanvasRequested"]) deleteCanvasRequested = true;
   else {
     bool pixelOn = msg["pixelOn"]; 
     int x = msg["x"]; 
@@ -80,7 +81,7 @@ void handleIncomingCommand(byte* payload, size_t length) {
 // Handle any websocket client connections/disconnections and messages.
 // Any incoming command is relayed to all connected clients and handled accordingly.
 // Any incoming binary is relayed to all connected clients and applied to the physical display.
-// Any newly connected clients are sent the current state of the canvas.
+// Any newly connected clients are added to the "clientsNeedingCanvas" queue.
 void handleWebSocketEvent(byte client, WStype_t type, byte* payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
@@ -96,7 +97,7 @@ void handleWebSocketEvent(byte client, WStype_t type, byte* payload, size_t leng
     case WStype_TEXT:
     {
       ws.broadcastTXT(payload, length);
-      handleIncomingCommand(payload, length);
+      handleCommand(payload, length);
     }
     break;
     case WStype_BIN:
@@ -122,7 +123,7 @@ std::vector<byte> convertCanvasToBinary() {
   return binaryData;
 }
 
-// Send a binary representation of the canvas to all clients in the queue.
+// Send a binary representation of the canvas to all clients in the "clientsNeedingCanvas" queue.
 // Attempts to resend one time in case of transmission failure.
 void sendCanvasToClientsInQueue() {
   std::vector<byte> binaryData = convertCanvasToBinary();
@@ -138,7 +139,7 @@ void sendCanvasToClientsInQueue() {
 // Saves the canvas state to the currently selected canvas file.
 void saveCanvasToFile() {
   File file;
-  std::string filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
+  std::string filepath = "/" + std::to_string(currentCanvas) + ".dat";
   file = LittleFS.open(filepath.c_str(), "w+");
   if (file) {
     std::vector<byte> binaryData = convertCanvasToBinary();
@@ -148,8 +149,9 @@ void saveCanvasToFile() {
 }
 
 // Loads the next stored canvas from memory if found, otherwise loads the first canvas.
+// Adds all connected clients to the "clientsNeedingCanvas" queue.
 void switchToNextCanvas() {
-  std::string filepath = "/icc" + std::to_string(++currentCanvas) + ".dat";
+  std::string filepath = "/" + std::to_string(++currentCanvas) + ".dat";
   File file;
   byte buf[bytesPerImage];
   if (LittleFS.exists(filepath.c_str())) {
@@ -157,7 +159,7 @@ void switchToNextCanvas() {
   }
   else {
     currentCanvas = 0;
-    filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
+    filepath = "/" + std::to_string(currentCanvas) + ".dat";
     file = LittleFS.open(filepath.c_str(), "r");
   }
   if (file) {
@@ -177,10 +179,10 @@ void switchToNextCanvas() {
 // Creates a new blank canvas file in memory and switches to it.
 void createNewCanvas() {
   File file;
-  unsigned long imageNumber = 1;
-  std::string filepath = "/icc" + std::to_string(imageNumber) + ".dat";
+  unsigned long imageNumber = 0;
+  std::string filepath = "/" + std::to_string(imageNumber) + ".dat";
   while (LittleFS.exists(filepath.c_str())) {
-    filepath = "/icc" + std::to_string(++imageNumber) + ".dat";
+    filepath = "/" + std::to_string(++imageNumber) + ".dat";
   }
   file = LittleFS.open(filepath.c_str(), "w+");
   byte buf[bytesPerImage] = {0};
@@ -193,8 +195,22 @@ void createNewCanvas() {
 }
 
 // Deletes the currently selected canvas from memory and switch to the next available canvas.
+// Replaces the deleted canvas with the very last canvas to maintain continuity.
 void deleteCurrentCanvas() {
-
+  File file;
+  std::string currentCanvasPath = ("/" + std::to_string(currentCanvas) + ".dat");
+  int replacementCanvas = currentCanvas + 1;
+  std::string replacementPath = "/" + std::to_string(replacementCanvas) + ".dat";
+  while (LittleFS.exists(replacementPath.c_str())) {
+    replacementPath = "/" + std::to_string(++replacementCanvas) + ".dat";
+  }
+  replacementPath = "/" + std::to_string(--replacementCanvas) + ".dat";
+  if (LittleFS.remove(currentCanvasPath.c_str())) {
+    if (replacementCanvas != currentCanvas) {
+      LittleFS.rename(replacementPath.c_str(), currentCanvasPath.c_str());
+    }
+    else if (currentCanvas == 0) createNewCanvas();
+  }
 }
 
 void setup(void) {
@@ -257,14 +273,17 @@ void setup(void) {
       file.close();
     }
   }
-  std::string filepath = "/icc" + std::to_string(currentCanvas) + ".dat";
-  file = LittleFS.open(filepath.c_str(), "r");
-  byte buf[bytesPerImage];
-  if (file) {
-    file.readBytes((char*)buf, bytesPerImage);
-    file.close();
+  std::string filepath = "/" + std::to_string(currentCanvas) + ".dat";
+  if (LittleFS.exists(filepath.c_str())) {
+    byte buf[bytesPerImage];
+    file = LittleFS.open(filepath.c_str(), "r");
+    if (file) {
+      file.readBytes((char*)buf, bytesPerImage);
+      file.close();
+    }
+    applyImageToCanvas(buf);
   }
-  applyImageToCanvas(buf);
+  else createNewCanvas();
 }
 
 void loop(void) {
