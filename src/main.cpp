@@ -212,6 +212,7 @@ void deleteCurrentCanvas() {
       switchToNextCanvas();
     }
     else if (currentCanvas == 0) createNewCanvas();
+    else switchToNextCanvas();
   }
 }
 
