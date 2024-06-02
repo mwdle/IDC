@@ -42,7 +42,6 @@ std::deque<int> clientsNeedingCanvas;
 // Variables for canvas operations.
 unsigned long lastCanvasSave = 0;
 unsigned long currentCanvas = 0;
-unsigned long lastCanvasDeletion = 0;
 bool newCanvasRequested = false;
 bool nextCanvasRequested = false;
 bool deleteCanvasRequested = false;
@@ -140,8 +139,8 @@ void sendCanvasToClientsInQueue() {
 // Saves the canvas state to the currently selected canvas file.
 void saveCanvasToFile() {
   File file;
-  std::string filepath = "/" + std::to_string(currentCanvas) + ".dat";
-  file = LittleFS.open(filepath.c_str(), "w+");
+  const char* filepath = ("/" + std::to_string(currentCanvas) + ".dat").c_str();
+  file = LittleFS.open(filepath, "w+");
   if (file) {
     std::vector<byte> binaryData = convertCanvasToBinary();
     file.write(binaryData.data(), binaryData.size());
@@ -152,17 +151,17 @@ void saveCanvasToFile() {
 // Loads the next stored canvas from memory if found, otherwise loads the first canvas.
 // Adds all connected clients to the "clientsNeedingCanvas" queue.
 void switchToNextCanvas() {
-  std::string filepath = "/" + std::to_string(++currentCanvas) + ".dat";
+  std::string filepath = ("/" + std::to_string(++currentCanvas) + ".dat");
   File file;
-  byte buf[bytesPerImage];
   if (LittleFS.exists(filepath.c_str())) {
     file = LittleFS.open(filepath.c_str(), "r");
   }
   else {
     currentCanvas = 0;
-    filepath = "/" + std::to_string(currentCanvas) + ".dat";
+    filepath = ("/" + std::to_string(currentCanvas) + ".dat");
     file = LittleFS.open(filepath.c_str(), "r");
   }
+  byte buf[bytesPerImage];
   if (file) {
     file.readBytes((char*)buf, sizeof(buf));
     file.close();
@@ -181,12 +180,13 @@ void switchToNextCanvas() {
 void createNewCanvas() {
   File file;
   unsigned long imageNumber = 0;
-  std::string filepath = "/" + std::to_string(imageNumber) + ".dat";
+  std::string filepath = ("/" + std::to_string(imageNumber) + ".dat");
   while (LittleFS.exists(filepath.c_str())) {
-    filepath = "/" + std::to_string(++imageNumber) + ".dat";
+    filepath = ("/" + std::to_string(++imageNumber) + ".dat");
   }
   file = LittleFS.open(filepath.c_str(), "w+");
-  byte buf[bytesPerImage] = {0};
+  byte buf[bytesPerImage];
+  memset(buf, 0, bytesPerImage);
   if (file) {
     file.write(buf, sizeof(buf));
     file.close();
@@ -198,14 +198,13 @@ void createNewCanvas() {
 // Deletes the currently selected canvas from memory and switch to the next available canvas.
 // Replaces the deleted canvas with the very last canvas to maintain continuity.
 void deleteCurrentCanvas() {
-  File file;
-  std::string currentCanvasPath = ("/" + std::to_string(currentCanvas) + ".dat");
-  unsigned int replacementCanvas = currentCanvas + 1;
-  std::string replacementPath = "/" + std::to_string(replacementCanvas) + ".dat";
+  unsigned long replacementCanvas = currentCanvas + 1;
+  std::string replacementPath = ("/" + std::to_string(replacementCanvas) + ".dat");
   while (LittleFS.exists(replacementPath.c_str())) {
-    replacementPath = "/" + std::to_string(++replacementCanvas) + ".dat";
+    replacementPath = ("/" + std::to_string(++replacementCanvas) + ".dat");
   }
-  replacementPath = "/" + std::to_string(--replacementCanvas) + ".dat";
+  replacementPath = ("/" + std::to_string(--replacementCanvas) + ".dat");
+  std::string currentCanvasPath = ("/" + std::to_string(currentCanvas) + ".dat");
   if (LittleFS.remove(currentCanvasPath.c_str())) {
     if (replacementCanvas != currentCanvas) {
       LittleFS.rename(replacementPath.c_str(), currentCanvasPath.c_str());
@@ -277,10 +276,10 @@ void setup(void) {
       file.close();
     }
   }
-  std::string filepath = "/" + std::to_string(currentCanvas) + ".dat";
-  if (LittleFS.exists(filepath.c_str())) {
+  const char* filepath = ("/" + std::to_string(currentCanvas) + ".dat").c_str();
+  if (LittleFS.exists(filepath)) {
     byte buf[bytesPerImage];
-    file = LittleFS.open(filepath.c_str(), "r");
+    file = LittleFS.open(filepath, "r");
     if (file) {
       file.readBytes((char*)buf, bytesPerImage);
       file.close();
@@ -304,10 +303,9 @@ void loop(void) {
     lastCanvasSave = millis();
   }
 
-  if (deleteCanvasRequested && millis() - lastCanvasDeletion > 1000) {
+  if (deleteCanvasRequested) {
     deleteCurrentCanvas();
     deleteCanvasRequested = false;
-    lastCanvasDeletion = millis();
   }
 
   if (newCanvasRequested) {
