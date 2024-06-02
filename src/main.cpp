@@ -42,6 +42,7 @@ std::deque<int> clientsNeedingCanvas;
 // Variables for canvas operations.
 unsigned long lastCanvasSave = 0;
 unsigned long currentCanvas = 0;
+unsigned long lastCanvasDeletion = 0;
 bool newCanvasRequested = false;
 bool nextCanvasRequested = false;
 bool deleteCanvasRequested = false;
@@ -303,9 +304,10 @@ void loop(void) {
     lastCanvasSave = millis();
   }
 
-  if (deleteCanvasRequested) {
+  if (deleteCanvasRequested && millis() - lastCanvasDeletion > 1000) {
     deleteCurrentCanvas();
     deleteCanvasRequested = false;
+    lastCanvasDeletion = millis();
   }
 
   if (newCanvasRequested) {
