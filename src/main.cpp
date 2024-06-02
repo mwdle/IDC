@@ -199,7 +199,7 @@ void createNewCanvas() {
 void deleteCurrentCanvas() {
   File file;
   std::string currentCanvasPath = ("/" + std::to_string(currentCanvas) + ".dat");
-  int replacementCanvas = currentCanvas + 1;
+  unsigned int replacementCanvas = currentCanvas + 1;
   std::string replacementPath = "/" + std::to_string(replacementCanvas) + ".dat";
   while (LittleFS.exists(replacementPath.c_str())) {
     replacementPath = "/" + std::to_string(++replacementCanvas) + ".dat";
@@ -208,6 +208,8 @@ void deleteCurrentCanvas() {
   if (LittleFS.remove(currentCanvasPath.c_str())) {
     if (replacementCanvas != currentCanvas) {
       LittleFS.rename(replacementPath.c_str(), currentCanvasPath.c_str());
+      currentCanvas--;
+      switchToNextCanvas();
     }
     else if (currentCanvas == 0) createNewCanvas();
   }
@@ -300,9 +302,9 @@ void loop(void) {
     lastCanvasSave = millis();
   }
 
-  if (canvasDeletionRequested) {
+  if (deleteCanvasRequested) {
     deleteCurrentCanvas();
-    canvasDeletionRequested = false;
+    deleteCanvasRequested = false;
   }
 
   if (newCanvasRequested) {
