@@ -4,40 +4,38 @@
 <head>
     <title>IDC</title>
     <link rel="stylesheet" href="styles.css" type="text/css">
-    <link rel="icon" type="image/x-icon" href="favicon.png">  
+    <link rel="icon" type="image/x-icon" href="favicon.ico">  
 </head>
 <body>
-    <div id="container">
-        <h1 class="title centered">IDC - I2C Display Controller</h1>
-        <div class="centered">
-            <div id="guide"></div>
-            <canvas id="canvas"></canvas>
-        </div>
-        <div class="penControls centered">
-            <label id="toggleEraserLabel" for="eraserToggleCheckbox">Eraser Toggle:</label>
-            <input type="checkbox" id="eraserToggleCheckbox">
-        </div>
-        <div class="brushControls centered">
-            <label for="brush-select">Brush Size:</label>
-            <select id="brush-select">
-                <option value="1">1x</option>
-                <option value="2">2x</option>
-                <option value="4">4x</option>
-                <option value="8">8x</option>
-                <option value="16">16x</option>
-            </select>
-        </div>
-        <div class="centered">
-            <button type="button" id="clearButton">Clear Canvas</button>
-        </div>
-        <div class="centered">
-            <button for="imageUpload" id="imageUploadButton">Upload an image</button>
-            <input type="file" id="imageUpload" accept="image/*">
-            <button type="button" id="downloadButton">Download image</button>
-            <button type="button" id="newCanvasButton">Add new canvas to rotation</button>
-            <button type="button" id="nextCanvasButton">Load next canvas from rotation</button>
-            <button type="button" id="deleteCanvasButton">Delete canvas from rotation</button>
-        </div>
+    <h1 class="title centered">IDC - I2C Display Controller</h1>
+    <div class="centered">
+        <div id="guide"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+    <div class="penControls centered">
+        <label id="toggleEraserLabel" for="eraserToggleCheckbox">Eraser Toggle:</label>
+        <input type="checkbox" id="eraserToggleCheckbox">
+    </div>
+    <div class="brushControls centered">
+        <label for="brush-select">Brush Size:</label>
+        <select id="brush-select">
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+            <option value="8">8x</option>
+            <option value="16">16x</option>
+        </select>
+    </div>
+    <div class="centered">
+        <button type="button" id="clearButton">Clear Canvas</button>
+    </div>
+    <div class="centered">
+        <button for="imageUpload" id="imageUploadButton">Upload an image</button>
+        <input type="file" id="imageUpload" accept="image/*">
+        <button type="button" id="downloadButton">Download image</button>
+        <button type="button" id="newCanvasButton">Add new canvas to rotation</button>
+        <button type="button" id="nextCanvasButton">Load next canvas from rotation</button>
+        <button type="button" id="deleteCanvasButton">Delete canvas from rotation</button>
     </div>
     <script src="script.js"></script>
 </body>
