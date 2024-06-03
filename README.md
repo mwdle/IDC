@@ -25,7 +25,10 @@ The following libraries/dependencies are required (for basic and network functio
 * [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library)    
 * [Adafruit SSD1306](https://github.com/adafruit/Adafruit_SSD1306)
 * [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
-* [ArduinoWebSockets](https://github.com/Links2004/arduinoWebSockets)    <br><br>
+* [ArduinoWebSockets](https://github.com/Links2004/arduinoWebSockets)
+* [ESP8266WiFi](https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WiFi)
+* [ESPAsyncTCP](https://github.com/me-no-dev/ESPAsyncTCP)
+* [ESP8266 LittleFS Wrapper](https://github.com/esp8266/Arduino/blob/master/libraries/LittleFS/src/LittleFS.h)    <br><br>
 
 The following line must be uncommented in the WebSockets.h file of the ArduinoWebSockets library before building and uploading the project to your microcontroller:
 * #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC
