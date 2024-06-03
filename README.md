@@ -19,7 +19,7 @@ Stateful multi-client web-based drawing canvas mirrored onto an I2C display and 
 ## Specifications and things you should know
 All builds were created and tested using the PlatformIO IDE extension for VSCode and Espressif ESP8266 NodeMCU board paired with a 2 pin .96 Inch 128x64 I2C SSD1306 OLED display. Mileage may vary using other boards, IDE's, and displays.    <br><br>
 
-The following libraries/dependencies are required (for basic and network functions):
+The following libraries/dependencies are required:
 * [Elegant OTA](https://github.com/ayushsharma82/ElegantOTA)
 * [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)    
 * [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library)    
@@ -29,12 +29,6 @@ The following libraries/dependencies are required (for basic and network functio
 * [ESP8266WiFi](https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WiFi)
 * [ESPAsyncTCP](https://github.com/me-no-dev/ESPAsyncTCP)
 * [ESP8266 LittleFS Wrapper](https://github.com/esp8266/Arduino/blob/master/libraries/LittleFS/src/LittleFS.h)    <br><br>
-
-The following line must be uncommented in the WebSockets.h file of the ArduinoWebSockets library before building and uploading the project to your microcontroller:
-* #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC
-
-ALTERNATIVELY - Add the following line to the loop() function in main.cpp (performance will be slower than using the ASYNC websocket network type):
-* ws.loop();
 
 ### Network Info:
 * This program requires internet to function
@@ -52,6 +46,13 @@ ALTERNATIVELY - Add the following line to the loop() function in main.cpp (perfo
 ### Pinout Info:
 * errorLED is the pin of your onboard red LED. This program uses pin D0 (16) on the ESP8266 NodeMCU.    
 * The display pins: SCL and SDA, default to pins D1 and D2, respectively, on the ESP8266. However, these defaults can be overriden by adding the following to the setup(): Wire.begin(sda, scl);
+
+### Websocket Type:
+* The following line must be uncommented in the WebSockets.h file of the ArduinoWebSockets library before building and uploading the project to your ESP8266:
+  * #define WEBSOCKETS_NETWORK_TYPE NETWORK_ESP8266_ASYNC
+
+* ALTERNATIVELY - Add the following line to the loop() function in main.cpp (performance will be slower than using the ASYNC websocket network type):
+  * ws.loop();
 
 ### License
 * This project is licensed under the GPL 3.0 license. However, please note that the images included in this repository are not covered by this license. For more information, see the `IMAGES_LICENSE.txt` file.
