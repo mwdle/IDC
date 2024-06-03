@@ -4,16 +4,6 @@ body {
     font-family: sans-serif;
 }
 
-.titleHeader {
-    font-size: 2rem;
-    margin-bottom: .25rem;
-}
-
-.githubLink {
-    color: #ffffff;
-    font-size: 1rem;
-}
-
 #canvas {
     cursor: crosshair;
     border: 1px solid rgba(255, 255, 255, .5);
@@ -93,17 +83,9 @@ select {
     grid-column: 2;
 }
 
-.eraserControls {
-    
-}
-
 .brushControls {
     padding-top: .75rem;
     padding-bottom: .75rem;
-}
-
-.clearControls {
-
 }
 
 .loadControls {
@@ -116,4 +98,14 @@ select {
     margin-top: .75rem;
     grid-row: 3;
     grid-column: 3;
+}
+
+.titleHeader {
+    font-size: 2rem;
+    margin-bottom: .25rem;
+}
+
+.githubLink {
+    color: #ffffff;
+    font-size: 1rem;
 }
