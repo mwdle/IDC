@@ -60,10 +60,9 @@ void applyImageToCanvas(byte* buf) {
 }
 
 // Handles a websocket client message containing a command.
-void handleCommand(byte* payload, size_t length) {
+void handleCommand(byte* payload) {
   JsonDocument msg;
   deserializeJson(msg, payload);
-
   if (msg["clear"]) display.fillRect(0, 0, 128, 64, BLACK);
   else if (msg["newCanvasRequested"]) newCanvasRequested = true;
   else if (msg["nextCanvasRequested"]) nextCanvasRequested = true;
@@ -97,7 +96,7 @@ void handleWebSocketEvent(byte client, WStype_t type, byte* payload, size_t leng
     case WStype_TEXT:
     {
       ws.broadcastTXT(payload, length);
-      handleCommand(payload, length);
+      handleCommand(payload);
     }
     break;
     case WStype_BIN:
