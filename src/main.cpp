@@ -150,7 +150,6 @@ void saveCanvasToFile() {
 // Loads the next stored canvas from memory if found, otherwise loads the first canvas.
 // Adds all connected clients to the "clientsNeedingCanvas" queue.
 void switchToNextCanvas() {
-  saveCanvasToFile();
   std::string filepath = ("/" + std::to_string(++currentCanvas) + ".dat");
   File file;
   if (LittleFS.exists(filepath.c_str())) {
@@ -298,7 +297,7 @@ void loop(void) {
     lastWifiCheck = millis();
   }
   
-  if (millis() - lastCanvasSave > 10000) { 
+  if (millis() - lastCanvasSave > 1000) { 
     saveCanvasToFile();
     lastCanvasSave = millis();
   }
