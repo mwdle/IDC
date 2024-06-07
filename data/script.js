@@ -125,7 +125,7 @@ function parseCanvasState(e) {
       let bit = (pixels[byteIndex] >> bitIndex) & 1;
       if (bit) drawing.fillStyle = "#FFFFFF";
       else drawing.fillStyle = "#242526";
-      drawing.fillRect(x * canvasMultiplier, y * canvasMultiplier, 7, 7);
+      drawing.fillRect(x * canvasMultiplier, y * canvasMultiplier, canvasMultiplier, canvasMultiplier);
     }
   }
 }

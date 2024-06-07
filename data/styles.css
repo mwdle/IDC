@@ -19,10 +19,11 @@ body {
     display: grid;
     pointer-events: none;
     position: absolute;
+    border: .99px solid rgba(128, 128, 128, 0.3);
 }
 
 #guide div {
-    border: 1px solid rgba(128, 128, 128, 0.3);
+    border: .01px solid rgba(128, 128, 128, 0.3);
 }
 
 select {
