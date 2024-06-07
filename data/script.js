@@ -263,8 +263,8 @@ function clearCanvas() {
 // Recalculate and apply updated scale values and pixel grid guidelines.
 function brushChanged(e) {
   brushSize = parseInt(e.target.value);
-  horizontalCellCount = 128 / brushSize;
-  verticalCellCount = 64 / brushSize;
+  horizontalCellCount = physicalDisplayWidth / brushSize;
+  verticalCellCount = physicalDisplayHeight / brushSize;
   cellSideLength = canvas.width / horizontalCellCount;
   setupGridGuides();
 }
