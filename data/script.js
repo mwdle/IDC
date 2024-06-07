@@ -1,4 +1,3 @@
-// Canvas JS ADAPTED FROM https://codepen.io/dcode-software/pen/yLvWNpx
 // If connecting without http (ex via local IP), port 81 is used for websocket connection.
 // Otherwise, the program connects via port 443 which requires a reverse proxy server that will forwards /ws requests to port 81.
 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
