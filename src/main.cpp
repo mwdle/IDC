@@ -242,6 +242,7 @@ void setup(void) {
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
+  WiFi.hostname("esp8266");
   WiFi.begin(ssid.c_str(), password.c_str());
   while(WiFi.status() != WL_CONNECTED)
   {
