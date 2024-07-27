@@ -1,5 +1,5 @@
 # I2C Display Controller
-Stateful multi-client web-based drawing canvas mirrored onto an I2C display and clients' canvases in realtime using an ESP8266 NodeMCU board.    <br><br>    
+A stateful web-based multi-client drawing canvas mirrored onto an I2C display and clients' canvases in realtime using an ESP8266 NodeMCU board.    <br><br>    
 <p align="center" float="left">
   <img src="webPage.gif" alt="animated" width="45%"/>
   <img src="display.gif" alt="animated" width="45%"/>
